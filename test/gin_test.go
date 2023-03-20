@@ -23,11 +23,12 @@ func (s *TestService) Handler(service middleware.Handler) (any, error) {
 //实现方法
 type TestParam struct {
 	TestService
+	Token string `validate:"required"`
 	Param string `validate:"required"`
 }
 
 func (s *TestParam) Exec() (any, error) {
-	return fmt.Sprintf("[%s]handler [%s]param", s.str, s.Param), nil
+	return fmt.Sprintf("[%s]handler [%s]token [%s]param", s.str, s.Token, s.Param), nil
 }
 
 //启动http
@@ -39,9 +40,12 @@ func TestWeb(t *testing.T) {
 			//get请求
 			home.GET("", func(c *gin.Context) {
 				//query参数解析并执行
-				(&middleware.AbstractParser[*TestParam]{C: c}).Query("param")
+				(&middleware.AbstractParser[*TestParam]{C: c}).Query("param", "token")
 			})
 		}
+	})
+	middleware.RegisterParam("token", func(g *gin.Context) (string, error) {
+		return g.GetHeader("token"), nil
 	})
 	gin.SetMode("debug")
 	middleware.InitHttp("/qz").Run(":8085")
