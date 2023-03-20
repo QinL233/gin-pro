@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/unknwon/com"
 	"reflect"
-	"strings"
 )
 
 /**
@@ -23,19 +22,20 @@ type Parser interface {
 	Query(params ...string)
 	Path(params ...string)
 	Form(params ...string)
-	//获取用户信息方式
-	UserInfo() (string, error)
 }
 
 type AbstractParser[T Handler] struct {
 	C         *gin.Context
 	IsContext bool
-	//用于反射
+	//用于反射的参数/server
 	param T
 }
 
-func (b *AbstractParser[T]) UserInfo() (string, error) {
-	return "", nil
+//自定义参数以及提取器
+var paramTables = make(map[string]func(g *gin.Context) (string, error))
+
+func RegisterParam(paramName string, f func(g *gin.Context) (string, error)) {
+	paramTables[paramName] = f
 }
 
 //通用并从body中获取参数传递
@@ -61,19 +61,13 @@ func (b *AbstractParser[T]) Body(params ...string) {
 		v := reflect.ValueOf(b.param).Elem() //通过类型创建对象
 		for _, paramName := range params {
 			fv := v.FieldByName(capitalize(paramName))
-			if fv.CanSet() {
-				//userId从表单、header-token中获取
-				if strings.EqualFold(paramName, "userId") {
-					userId := b.C.Query(paramName)
-					if userId == "" {
-						if userId, err = b.UserInfo(); err != nil {
-							Error(b.C, err)
-							return
-						} else {
-							fv.SetString(userId)
-						}
+			if fv.CanSet() && fv.IsNil() {
+				if f, ok := paramTables[paramName]; ok {
+					if cv, err := f(b.C); err != nil {
+						Error(b.C, err)
+						return
 					} else {
-						fv.SetString(userId)
+						fv.SetString(cv)
 					}
 				}
 			}
@@ -91,31 +85,25 @@ func (b *AbstractParser[T]) Query(params ...string) {
 	for _, paramName := range params {
 		fv := v.FieldByName(capitalize(paramName))
 		if fv.CanSet() {
-			//如果是userId则优先从query取，其次从header的token中获取
-			if strings.EqualFold(paramName, "userId") {
-				userId := b.C.Query(paramName)
-				if userId == "" {
-					if userId, err := b.UserInfo(); err != nil {
-						Error(b.C, err)
-						return
-					} else {
-						fv.SetString(userId)
-					}
-				} else {
-					fv.SetString(userId)
-				}
-			} else {
+			if value, exist := b.C.GetQuery(paramName); exist {
 				//根据参数类型从param中获取
 				switch fv.Kind() {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					fv.SetInt(com.StrTo(b.C.Query(paramName)).MustInt64())
+					fv.SetInt(com.StrTo(value).MustInt64())
 				case reflect.Float64, reflect.Float32:
-					fv.SetFloat(com.StrTo(b.C.Query(paramName)).MustFloat64())
+					fv.SetFloat(com.StrTo(value).MustFloat64())
 				case reflect.String:
-					fv.SetString(b.C.Query(paramName))
+					fv.SetString(value)
 				default:
 					ParamError(b.C)
 					return
+				}
+			} else if f, ok := paramTables[paramName]; ok {
+				if cv, err := f(b.C); err != nil {
+					Error(b.C, err)
+					return
+				} else {
+					fv.SetString(cv)
 				}
 			}
 		}
@@ -132,31 +120,26 @@ func (b *AbstractParser[T]) Path(params ...string) {
 	for _, paramName := range params {
 		fv := v.FieldByName(capitalize(paramName))
 		if fv.CanSet() {
-			//如果是userId则优先从param取，其次从header的token中获取
-			if strings.EqualFold(paramName, "userId") {
-				userId := b.C.Query(paramName)
-				if userId == "" {
-					if userId, err := b.UserInfo(); err != nil {
-						Error(b.C, err)
-						return
-					} else {
-						fv.SetString(userId)
-					}
-				} else {
-					fv.SetString(userId)
-				}
-			} else {
+			value := b.C.Param(paramName)
+			if value != "" {
 				//根据参数类型从param中获取
 				switch fv.Kind() {
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					fv.SetInt(com.StrTo(b.C.Param(paramName)).MustInt64())
+					fv.SetInt(com.StrTo(value).MustInt64())
 				case reflect.Float64, reflect.Float32:
-					fv.SetFloat(com.StrTo(b.C.Param(paramName)).MustFloat64())
+					fv.SetFloat(com.StrTo(value).MustFloat64())
 				case reflect.String:
-					fv.SetString(b.C.Param(paramName))
+					fv.SetString(value)
 				default:
 					ParamError(b.C)
 					return
+				}
+			} else if f, ok := paramTables[paramName]; ok {
+				if cv, err := f(b.C); err != nil {
+					Error(b.C, err)
+					return
+				} else {
+					fv.SetString(cv)
 				}
 			}
 		}
@@ -178,39 +161,31 @@ func (b *AbstractParser[T]) Form(params ...string) {
 	for _, paramName := range params {
 		fv := v.FieldByName(capitalize(paramName))
 		if fv.CanSet() {
-			//如果是userId则优先从param取，其次从header的token中获取
-			if strings.EqualFold(paramName, "userId") {
-				userId := b.C.Query(paramName)
-				if userId == "" {
-					if userId, err := b.UserInfo(); err != nil {
-						Error(b.C, err)
-						return
-					} else {
-						fv.SetString(userId)
-					}
-				} else {
-					fv.SetString(userId)
+			if file, ok := form.File[paramName]; ok {
+				if len(file) > 0 {
+					fv.Set(reflect.ValueOf(file))
 				}
-			} else {
-				if file, ok := form.File[paramName]; ok {
-					if len(file) > 0 {
-						fv.Set(reflect.ValueOf(file))
+			} else if value, ok := form.Value[paramName]; ok {
+				if len(value) > 0 {
+					//根据参数类型从param中获取
+					switch fv.Kind() {
+					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+						fv.SetInt(com.StrTo(value[0]).MustInt64())
+					case reflect.Float64, reflect.Float32:
+						fv.SetFloat(com.StrTo(value[0]).MustFloat64())
+					case reflect.String:
+						fv.SetString(value[0])
+					default:
+						ParamError(b.C)
+						return
 					}
-				} else if value, ok := form.Value[paramName]; ok {
-					if len(value) > 0 {
-						//根据参数类型从param中获取
-						switch fv.Kind() {
-						case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-							fv.SetInt(com.StrTo(value[0]).MustInt64())
-						case reflect.Float64, reflect.Float32:
-							fv.SetFloat(com.StrTo(value[0]).MustFloat64())
-						case reflect.String:
-							fv.SetString(value[0])
-						default:
-							ParamError(b.C)
-							return
-						}
-					}
+				}
+			} else if f, ok := paramTables[paramName]; ok {
+				if cv, err := f(b.C); err != nil {
+					Error(b.C, err)
+					return
+				} else {
+					fv.SetString(cv)
 				}
 			}
 		}
