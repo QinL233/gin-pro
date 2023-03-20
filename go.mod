@@ -1,4 +1,4 @@
-module gin-pro
+module github.com/QinL233/gin-pro
 
 go 1.18
 

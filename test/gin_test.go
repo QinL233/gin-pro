@@ -2,7 +2,7 @@ package test
 
 import (
 	"fmt"
-	"gin-pro/middleware"
+	"github.com/QinL233/gin-pro/middleware"
 	"github.com/gin-gonic/gin"
 	"testing"
 )
