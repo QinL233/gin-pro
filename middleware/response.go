@@ -26,6 +26,11 @@ type Response[T any] struct {
 	Data T      `json:"data"`
 }
 
+type NodeResult[T any] struct {
+	Node      T               `json:"node"`
+	ChildList []NodeResult[T] `json:"childList"`
+}
+
 type PageResponse[T any] struct {
 	Response[T]
 	//当前页
@@ -38,9 +43,30 @@ type PageResponse[T any] struct {
 	TotalCount int `json:"totalCount"`
 }
 
-type NodeResult[T any] struct {
-	Node      T               `json:"node"`
-	ChildList []NodeResult[T] `json:"childList"`
+//封装分页返回数据
+func PageResult(count int64, list any, pageSize int, currentPage int) PageResponse[any] {
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	//计算出总页数（每页数量，总数量）
+	pageCount := 0
+	iCount := int(count)
+	if iCount%pageSize == 0 {
+		pageCount = iCount / pageSize
+	} else {
+		pageCount = iCount/pageSize + 1
+	}
+	return PageResponse[any]{
+		Response: Response[any]{
+			Data: list,
+			Code: 200,
+			Msg:  "success",
+		},
+		CurrentPage: currentPage,
+		PageSize:    pageSize,
+		PageCount:   pageCount,
+		TotalCount:  int(count),
+	}
 }
 
 /**
