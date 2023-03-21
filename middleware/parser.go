@@ -61,7 +61,7 @@ func (b *AbstractParser[T]) Body(params ...string) {
 		v := reflect.ValueOf(b.param).Elem() //通过类型创建对象
 		for _, paramName := range params {
 			fv := v.FieldByName(capitalize(paramName))
-			if fv.CanSet() && fv.IsNil() {
+			if fv.CanSet() && fv.IsZero() {
 				if f, ok := paramTables[paramName]; ok {
 					if cv, err := f(b.C); err != nil {
 						Error(b.C, err)
