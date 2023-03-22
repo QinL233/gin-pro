@@ -211,7 +211,7 @@ func (b *AbstractParser[T]) serverHandlerWithReflect(v reflect.Value) {
 //执行param校验以及绑定的server方法获取返回
 func (b *AbstractParser[T]) serverHandler() {
 	//1、全局存储param方便取证
-	b.C.Set(REQUEST_PARAM, fmt.Sprintf("%v", b.param))
+	b.C.Set(RequestParam, fmt.Sprintf("%v", b.param))
 	//2、校验参数
 	if err := Valid(b.param); err != nil {
 		Error(b.C, err)

@@ -13,9 +13,9 @@ import (
 /**
 gin context全局变量用于存储传参，返回，错误日志
 */
-var REQUEST_PARAM = "request_param"
-var RESPONSE_BODY = "response_body"
-var RESPONSE_ERR = "response_err"
+var RequestParam = "request_param"
+var ResponseBody = "response_body"
+var ResponseErr = "response_err"
 
 /**
 标准类型的返回封装
@@ -76,9 +76,9 @@ func PageResult(count int64, list any, pageSize int, currentPage int) PageRespon
 func Success(c *gin.Context, data ...any) {
 	rs := fmt.Sprintf("%v", data)
 	if len(rs) > 255 {
-		c.Set(RESPONSE_BODY, rs[:255])
+		c.Set(ResponseBody, rs[:255])
 	} else {
-		c.Set(RESPONSE_BODY, rs)
+		c.Set(ResponseBody, rs)
 	}
 
 	if len(data) > 0 && data[0] != nil {
@@ -104,11 +104,11 @@ func Success(c *gin.Context, data ...any) {
 
 //通用错误
 func Error(c *gin.Context, errMsg error, errCode ...int) {
-	fmt.Println(fmt.Errorf("[err] %v", errMsg))
+	fmt.Println(fmt.Errorf("[err] %w", errMsg))
 	if len(errMsg.Error()) > 255 {
-		c.Set(RESPONSE_ERR, errMsg.Error()[:255])
+		c.Set(ResponseErr, errMsg.Error()[:255])
 	} else {
-		c.Set(RESPONSE_ERR, errMsg.Error())
+		c.Set(ResponseErr, errMsg.Error())
 	}
 	if len(errCode) > 0 {
 		c.JSON(http.StatusOK, Response[any]{
