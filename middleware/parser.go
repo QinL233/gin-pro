@@ -219,7 +219,7 @@ func (b *AbstractParser[T]) serverHandler() {
 	}
 	//3、执行handler
 	if b.IsContext {
-		if _, err := b.param.ContextHandler(b.param, b.C); err != nil {
+		if _, err := b.param.ContextHandler(b.C, b.param); err != nil {
 			Error(b.C, err)
 		}
 	} else {

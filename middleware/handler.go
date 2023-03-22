@@ -10,7 +10,7 @@ type Handler interface {
 	//常规业务函数，返回data
 	Handler(service Handler) (any, error)
 	//将context传递到全局
-	ContextHandler(service Handler, c *gin.Context) (any, error)
+	ContextHandler(c *gin.Context, service Handler) (any, error)
 	//需要重载的接口
 	Exec() (any, error)
 	ContextExec(c *gin.Context) (any, error)
@@ -23,7 +23,7 @@ type AbstractHandler struct {
 func (s *AbstractHandler) Handler(service Handler) (any, error) {
 	return service.Exec()
 }
-func (s *AbstractHandler) ContextHandler(service Handler, c *gin.Context) (any, error) {
+func (s *AbstractHandler) ContextHandler(c *gin.Context, service Handler) (any, error) {
 	return service.ContextExec(c)
 }
 
